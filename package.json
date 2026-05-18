@@ -1,0 +1,48 @@
+{
+  "name": "evit-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "bcryptjs": "latest",
+    "cloudinary": "latest",
+    "compression": "latest",
+    "cookie-parser": "latest",
+    "cors": "latest",
+    "csv-writer": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "express-async-errors": "latest",
+    "express-rate-limit": "latest",
+    "helmet": "latest",
+    "jsonwebtoken": "latest",
+    "mongoose": "latest",
+    "morgan": "latest",
+    "multer": "latest",
+    "multer-storage-cloudinary": "latest",
+    "nodemailer": "latest",
+    "pino": "latest",
+    "pino-http": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "latest",
+    "@types/cookie-parser": "latest",
+    "@types/cors": "latest",
+    "@types/express": "latest",
+    "@types/jsonwebtoken": "latest",
+    "@types/morgan": "latest",
+    "@types/multer": "latest",
+    "@types/node": "latest",
+    "eslint": "latest",
+    "prettier": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}
