@@ -30,7 +30,7 @@ export const createIncident = async (req: Request, res: Response) => {
   let evidenceUrls: string[] = [];
   if (evidence) {
     for (const file of evidence) {
-      cloudinary.uploader.upload(file, { folder: 'evit' }, (error, result) => {
+      cloudinary.uploader.upload(file, { folder: 'evit' }, (error: any, result: { secure_url: string; }) => {
         if (error) {
           console.error('Cloudinary upload error:', error);
           return res.status(500).json({ message: 'Failed to upload evidence.' });
@@ -43,7 +43,7 @@ export const createIncident = async (req: Request, res: Response) => {
   const incident = await Incident.create({
     title, incidentType, state, location, specificArea, selectedLocation: { latitude, longitude, address }, description, tags, reporterName, reporterEmail, reporterPhone, isAnonymous, date, media: evidenceUrls
   });
-  
+
   res.status(201).json(incident);
 };
 
