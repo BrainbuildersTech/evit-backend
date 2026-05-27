@@ -5,10 +5,14 @@ import { isEmail, isMobilePhone   } from 'validator';
 import cloudinary from '../lib/cloudinary';
 
 export const createIncident = async (req: Request, res: Response) => {
-  const { title, incidentType, state, location, specificArea, selectedLocation: { latitude, longitude, address }, evidence, description, tags, reporterName, reporterEmail, reporterPhone, isAnonymous, date } = req.body;
+  const { title, incidentType, state, location, specificArea, selectedLocation: { latitude, longitude, address }, evidence, description, tags, reporterName, reporterEmail, reporterPhone, isAnonymous, date, otherIncidentType } = req.body;
 
   if (!title || !incidentType || !state || !location || !specificArea || !latitude || !longitude || !description) {
     return res.status(400).json({ message: 'Missing required fields. (Title, Incident Type, State, Location, Specific Area, Latitude, Longitude, Description)' });
+  }
+
+  if (incidentType === 'Other' && !otherIncidentType) {
+    return res.status(400).json({ message: 'Other incident type must be specified when "Other" is selected.' });
   }
 
   if (!isAnonymous && (!reporterName || !reporterEmail || !reporterPhone)) {
@@ -30,7 +34,7 @@ export const createIncident = async (req: Request, res: Response) => {
   let evidenceUrls: string[] = [];
   if (evidence) {
     for (const file of evidence) {
-      cloudinary.uploader.upload(file, { folder: 'evit' }, (error: any, result: { secure_url: string; }) => {
+      cloudinary.uploader.upload(file.path, { folder: 'evit' }, (error: any, result: { secure_url: string; }) => {
         if (error) {
           console.error('Cloudinary upload error:', error);
           return res.status(500).json({ message: 'Failed to upload evidence.' });
