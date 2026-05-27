@@ -3,12 +3,13 @@ import { Router } from 'express';
 import {
   createIncident,
   getIncidents,
-  updateVerification
+  updateVerification,
+  upload
 } from '../controllers/incident.controller';
 
 const router = Router();
 
-router.post('/', createIncident);
+router.post('/', upload.array('media'), createIncident);
 router.get('/', getIncidents);
 router.patch('/:id/verification', updateVerification);
 

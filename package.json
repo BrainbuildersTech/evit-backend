@@ -24,7 +24,7 @@
     "jsonwebtoken": "latest",
     "mongoose": "latest",
     "morgan": "latest",
-    "multer": "latest",
+    "multer": "^2.1.1",
     "multer-storage-cloudinary": "latest",
     "nodemailer": "latest",
     "pino": "latest",

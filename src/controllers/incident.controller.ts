@@ -1,54 +1,116 @@
 
 import { Request, Response } from 'express';
 import Incident from '../models/Incident';
-import { isEmail, isMobilePhone   } from 'validator';
+import { isEmail, isMobilePhone } from 'validator';
+import multer from 'multer';
 import cloudinary from '../lib/cloudinary';
 
+const storage = multer.diskStorage({
+  // destination: (req, file, cb) => {
+  //   cb(null, 'uploads/');
+  // },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}_${file.originalname}`);
+  },
+});
+export const upload = multer({ storage });
+
 export const createIncident = async (req: Request, res: Response) => {
-  const { title, incidentType, state, location, specificArea, selectedLocation: { latitude, longitude, address }, evidence, description, tags, reporterName, reporterEmail, reporterPhone, isAnonymous, date, otherIncidentType } = req.body;
+  const {
+    title,
+    incidentType,
+    state,
+    ward,
+    pollingUnit,
+    latitude,
+    longitude,
+    address,
+    description,
+    tags,
+    reporterName,
+    reporterEmail,
+    reporterPhone,
+    isAnonymous,
+    otherIncidentType,
+    lga,
+    date
+  } = req.body;
 
-  if (!title || !incidentType || !state || !location || !specificArea || !latitude || !longitude || !description) {
-    return res.status(400).json({ message: 'Missing required fields. (Title, Incident Type, State, Location, Specific Area, Latitude, Longitude, Description)' });
+  if (
+    !title?.trim() ||
+    !incidentType?.trim() ||
+    !state?.trim() ||
+    !pollingUnit?.trim() ||
+    !ward?.trim() ||
+    !lga?.trim() ||
+    !address?.trim() ||
+    !description?.trim() ||
+    !date
+  ) {
+    return res.status(400).json({
+      message: 'Missing required fields.'
+    });
   }
 
-  if (incidentType === 'Other' && !otherIncidentType) {
-    return res.status(400).json({ message: 'Other incident type must be specified when "Other" is selected.' });
+  
+  const parsedDate = new Date(date);
+  
+  if (isNaN(parsedDate.getTime())) {
+    return res.status(400).json({
+      message: 'Invalid date format.'
+    });
   }
 
-  if (!isAnonymous && (!reporterName || !reporterEmail || !reporterPhone)) {
-    return res.status(400).json({ message: 'Reporter information is required for non-anonymous reports.' });
-  }
+  if (incidentType === 'Other' && !otherIncidentType) return res.status(400).json({ message: 'Other incident type must be specified when "Other" is selected.' });
 
-  if (!isEmail(reporterEmail)) {
-    return res.status(400).json({ message: 'Invalid reporter email format.' });
-  }
+  if (!isAnonymous && (!reporterName || !reporterEmail || !reporterPhone)) return res.status(400).json({ message: 'Reporter information is required for non-anonymous reports.' });
 
-  if (!isMobilePhone(reporterPhone)) {
-    return res.status(400).json({ message: 'Invalid reporter phone number format.' });
-  }
+  // if ((reporterEmail && reporterEmail.length > 0) && !isEmail(reporterEmail)) return res.status(400).json({ message: 'Invalid reporter email format.' });
 
-  if (evidence && !Array.isArray(evidence)) {
-    return res.status(400).json({ message: 'Evidence must be an array of media URLs.' });
-  }
+  // if ((reporterPhone && reporterPhone.length > 0) && !isMobilePhone(reporterPhone)) return res.status(400).json({ message: 'Invalid reporter phone number format.' });
 
   let evidenceUrls: string[] = [];
-  if (evidence) {
-    for (const file of evidence) {
-      cloudinary.uploader.upload(file.path, { folder: 'evit' }, (error: any, result: { secure_url: string; }) => {
-        if (error) {
-          console.error('Cloudinary upload error:', error);
-          return res.status(500).json({ message: 'Failed to upload evidence.' });
-        }
+  if (req.files) {
+    for (const file of req.files as Express.Multer.File[]) {
+      try {
+        const result = await cloudinary.uploader.upload(file.path);
         evidenceUrls.push(result.secure_url);
-      });
+      } catch (error) {
+        console.log('Error uploading file to Cloudinary:', error);
+        return res.status(400).json(error);
+      }
     }
   }
 
-  const incident = await Incident.create({
-    title, incidentType, state, location, specificArea, selectedLocation: { latitude, longitude, address }, description, tags, reporterName, reporterEmail, reporterPhone, isAnonymous, date, media: evidenceUrls
+  const incident = new Incident({
+    title,
+    incidentType: incidentType === 'Other' ? otherIncidentType : incidentType,
+    state,
+    ward,
+    pollingUnit,
+    selectedLocation: {
+      latitude,
+      longitude,
+      address
+    },
+    date,
+    description,
+    tags: Array.isArray(tags)
+      ? tags
+      : tags
+        ? tags.split(',').map((tag: string) => tag.trim())
+        : [],
+    lga,
+    reporterName,
+    reporterEmail,
+    reporterPhone,
+    isAnonymous,
+    media: evidenceUrls
   });
 
-  res.status(201).json(incident);
+  const savedIncident = await incident.save();
+
+  res.status(201).json(savedIncident);
 };
 
 export const getIncidents = async (_req: Request, res: Response) => {

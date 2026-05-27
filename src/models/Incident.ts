@@ -4,7 +4,7 @@ import { Schema, model } from 'mongoose';
 const incidentSchema = new Schema({
   title: String,
   incidentType: String,
-  specificArea: String,
+  pollingUnit: String,
   lga: String,
   selectedLocation: {
     latitude: Number,
@@ -17,9 +17,9 @@ const incidentSchema = new Schema({
   reporterPhone: { type: String, null: true },
   description: String,
   state: String,
-  location: String,
+  ward: String,
   date: Date,
-  electionPhase: String,
+  electionPhase: { type: String, null: true },
   isAnonymous: { type: Boolean, default: true },
   media: [String],
   verificationStatus: {
