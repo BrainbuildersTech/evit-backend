@@ -5,6 +5,7 @@ const incidentSchema = new Schema({
   title: String,
   incidentType: String,
   specificArea: String,
+  lga: String,
   selectedLocation: {
     latitude: Number,
     longitude: Number,
