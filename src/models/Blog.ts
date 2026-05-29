@@ -5,7 +5,9 @@ const blogSchema = new Schema({
   title: String,
   slug: String,
   content: String,
+  author: String,
   coverImage: String,
+  category: String,
   published: {
     type: Boolean,
     default: true
