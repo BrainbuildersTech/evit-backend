@@ -5,13 +5,14 @@ import {
   deleteBlog,
   getBlogById,
   getBlogs,
-  updateBlog
+  updateBlog,
+  upload
 } from '../controllers/blog.controller';
 
 const router = Router();
 
-router.post('/', createBlog);
+router.post('/', upload.single("file"), createBlog);
 router.get('/', getBlogs);
-router.route('/:id').get(getBlogById).patch(updateBlog).delete(deleteBlog);
+router.route('/:id').get(getBlogById).patch(upload.single("file"), updateBlog).delete(deleteBlog);
 
 export default router;

@@ -1,6 +1,10 @@
 
 import { Request, Response } from 'express';
 import Blog from '../models/Blog';
+import cloudinary from '../lib/cloudinary';
+import multer from 'multer';
+
+export const upload = multer({ storage: multer.memoryStorage() });
 
 export const createBlog = async (req: Request, res: Response) => {
   const { title, content, author, published, category } = req.body;
@@ -12,13 +16,24 @@ export const createBlog = async (req: Request, res: Response) => {
 
   const blogSlug = title.toLowerCase().replace(/\s+/g, '-');
 
+  let coverImage: string = '';
+  if (req.file) {
+    try {
+      const result = await cloudinary.uploader.upload(req.file.path);
+      coverImage = result.secure_url;
+    } catch (error) {
+      return res.status(400).json(error);
+    }
+  }
+
   const newBlog = new Blog({
     title,
     slug: blogSlug,
     content,
     author,
     published,
-    category
+    category,
+    coverImage
   });
 
   const savedBlog = await newBlog.save();
@@ -48,21 +63,29 @@ export const updateBlog = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { title, content, author, published, category } = req.body;
 
+  let coverImage: string = '';
+  console.log('File received:', req.file);
+  if (req.file) {
+    try {
+      const result = await cloudinary.uploader.upload(req.file.path);
+      coverImage = result.secure_url;
+    } catch (error) {
+      return res.status(400).json(error);
+    }
+  }
+  
   try {
-    const updatedBlog = await Blog.findByIdAndUpdate(
-      id,
-      {
-        title,
-        content,
-        author,
-        published,
-        category
-      },
-      { new: true }
-    );
-    if (!updatedBlog) {
+    const blog = await Blog.findById(id);
+    if (!blog) {
       return res.status(404).json({ message: 'Blog not found.' });
     }
+    blog.title = title;
+    blog.content = content;
+    blog.author = author;
+    blog.published = published;
+    blog.category = category;
+    blog.coverImage = coverImage;
+    const updatedBlog = await blog.save();
     res.json(updatedBlog);
   } catch (error) {
     res.status(400).json({ message: 'Invalid blog ID.' });

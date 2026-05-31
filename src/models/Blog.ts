@@ -2,12 +2,34 @@
 import { Schema, model } from 'mongoose';
 
 const blogSchema = new Schema({
-  title: String,
-  slug: String,
-  content: String,
-  author: String,
-  coverImage: String,
-  category: String,
+  title: {
+    type: String,
+    required: [true, 'Title is required'],
+    trim: true
+  },
+  slug: {
+    type: String,
+    required: [true, 'Slug is required'],
+    unique: true
+  },
+  content: {
+    type: String,
+    required: [true, 'Content is required']
+  },
+  author: {
+    type: String,
+    required: [true, 'Author is required'],
+    trim: true
+  },
+  coverImage: {
+    type: String,
+    default: null
+  },
+  category: {
+    type: String,
+    required: [true, 'Category is required'],
+    trim: true
+  },
   published: {
     type: Boolean,
     default: true
