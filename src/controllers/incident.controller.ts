@@ -64,7 +64,7 @@ export const createIncident = async (req: Request, res: Response) => {
 
     let evidenceUrls: string[] = [];
     for (const file of req.files as Express.Multer.File[]) {
-      const url = await uploadToCloudinary(file.buffer, file.mimetype);
+      const url = await uploadToCloudinary(file);
       evidenceUrls.push(url);
     }
 

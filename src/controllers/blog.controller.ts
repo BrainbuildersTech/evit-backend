@@ -4,7 +4,13 @@ import Blog from '../models/Blog';
 import { uploadToCloudinary } from '../lib/cloudinary';
 import multer from 'multer';
 
-export const upload = multer({ storage: multer.memoryStorage() });
+const storage = multer.diskStorage({
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+
+export const upload = multer({ storage: storage });
 
 export const createBlog = async (req: Request, res: Response) => {
   const { title, content, author, published, category } = req.body;
@@ -18,7 +24,7 @@ export const createBlog = async (req: Request, res: Response) => {
 
   let coverImage: string = '';
   if (req.file) {
-    coverImage = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
+    coverImage = await uploadToCloudinary(req.file);
   }
 
   const newBlog = new Blog({
@@ -55,12 +61,13 @@ export const getBlogById = async (req: Request, res: Response) => {
 };
 
 export const updateBlog = async (req: Request, res: Response) => {
+  console.log("Body", req.body);
   const { id } = req.params;
   const { title, content, author, published, category } = req.body;
 
   let coverImage: string = '';
   if (req.file) {
-    coverImage = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
+    coverImage = await uploadToCloudinary(req.file);
   }
 
   try {

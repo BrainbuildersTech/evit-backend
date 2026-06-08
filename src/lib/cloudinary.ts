@@ -10,17 +10,23 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-export const uploadToCloudinary = (buffer: Buffer, mimetype: string): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { resource_type: 'auto' },
-      (error, result) => {
-        if (error || !result) return reject(error);
-        resolve(result.secure_url);
+export const uploadToCloudinary = async (file: any): Promise<string> => {
+  if (!file) {
+    throw new Error("No image provided");
+  }
+
+  const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
+    cloudinary.uploader.upload_large(file.path, (error: any, result: { secure_url: string }) => {
+      if (error) {
+        console.log("Cloudinary upload error", error);
+        reject(error);
+      } else {
+        resolve(result);
       }
-    );
-    Readable.from(buffer).pipe(uploadStream);
+    });
   });
+
+  return result.secure_url;
 };
 
 // export default cloudinary;
