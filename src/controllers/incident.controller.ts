@@ -29,6 +29,8 @@ export const createIncident = async (req: Request, res: Response) => {
       date
     } = req.body;
 
+    console.log("Files", req.files);
+
     if (
       !title?.trim() ||
       !incidentType?.trim() ||
@@ -62,11 +64,10 @@ export const createIncident = async (req: Request, res: Response) => {
 
     // if ((reporterPhone && reporterPhone.length > 0) && !isMobilePhone(reporterPhone)) return res.status(400).json({ message: 'Invalid reporter phone number format.' });
 
-    let evidenceUrls: string[] = [];
-    for (const file of req.files as Express.Multer.File[]) {
-      const url = await uploadToCloudinary(file);
-      evidenceUrls.push(url);
-    }
+    const files = (req.files as Express.Multer.File[]) || [];
+    const evidenceUrls = await Promise.all(
+      files.map((file) => uploadToCloudinary(file))
+    );
 
     const incident = new Incident({
       title,

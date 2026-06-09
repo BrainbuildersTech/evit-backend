@@ -27,3 +27,29 @@ export const login = async (req: Request, res: Response) => {
 
   res.json({ token, user });
 };
+
+export const createAdmin = async (req: Request, res: Response) => {
+  try {
+    const { name, email, password } = req.body;
+    const userExists = await User.findOne({ email });
+
+    if (userExists) {
+      return res.status(400).json({ message: 'Admin user already exists' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const admin = new User({
+      email,
+      password: hashedPassword,
+      role: 'admin'
+    });
+
+    await admin.save();
+
+    res.status(201).json({ message: 'Admin user created successfully' });
+    
+  } catch (error) {
+    console.log("Error creating admin user:", error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
