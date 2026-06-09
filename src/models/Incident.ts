@@ -19,6 +19,7 @@ const incidentSchema = new Schema({
   state: String,
   ward: String,
   date: Date,
+  comments: [{ type: Schema.Types.ObjectId, ref: 'Comment' }],
   electionPhase: { type: String, null: true },
   isAnonymous: { type: Boolean, default: true },
   media: [String],

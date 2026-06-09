@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.routes';
 import blogRoutes from './routes/blog.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import contactRoutes from './routes/contact.routes';
+import commentRoutes from './routes/comment.routes';
 
 const app = express();
 
@@ -36,5 +37,6 @@ app.use('/api/incidents', incidentRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/comment', commentRoutes);
 
 export default app;
