@@ -121,13 +121,11 @@ export const createIncident = async (req: Request, res: Response) => {
 };
 
 export const getIncidents = async (_req: Request, res: Response) => {
-  console.log("Called getIncidents");
   const incidents = await Incident.find().sort({ createdAt: -1 });
   res.json(incidents);
 };
 
 export const getVerifiedIncidents = async (_req: Request, res: Response) => {
-  console.log("Called getVerifiedIncidents");
   const incidents = await Incident.find({ verificationStatus: 'verified' }).sort({ createdAt: -1 });
   res.json(incidents);
 };
@@ -145,6 +143,8 @@ export const updateVerification = async (req: Request, res: Response) => {
       incident.verificationStatus = 'verified';
     } else if (action === 'reject') {
       incident.verificationStatus = 'rejected';
+    } else if (action === 'investigate') {
+      incident.verificationStatus = 'investigating';
     } else {
       return res.status(400).json({ message: 'Invalid action. Must be "verify" or "reject".' });
     }

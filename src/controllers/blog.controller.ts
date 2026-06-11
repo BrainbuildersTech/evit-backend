@@ -24,7 +24,6 @@ export const createBlog = async (req: Request, res: Response) => {
 
   let coverImage: string = '';
   if (req.file) {
-    console.log("Got here");
     coverImage = await uploadToCloudinary(req.file);
   }
 
@@ -48,9 +47,13 @@ export const getBlogs = async (_req: Request, res: Response) => {
   res.json(blogs);
 };
 
+export const getFilteredBlogs = async (req: Request, res: Response) => {
+  const blogs = await Blog.find({ published: true }).sort({ createdAt: -1 });
+  res.json(blogs);
+}
+
 export const getBlogById = async (req: Request, res: Response) => {
   const { id } = req.params;
-  console.log("Fetching blog with ID:", id);
   try {
     const blog = await Blog.findById(id);
     if (!blog) {
@@ -63,7 +66,6 @@ export const getBlogById = async (req: Request, res: Response) => {
 };
 
 export const updateBlog = async (req: Request, res: Response) => {
-  console.log("Body", req.body);
   const { id } = req.params;
   const { title, content, author, published, category } = req.body;
 
