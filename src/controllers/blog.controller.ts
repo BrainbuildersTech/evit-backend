@@ -49,6 +49,7 @@ export const getBlogs = async (_req: Request, res: Response) => {
 
 export const getBlogById = async (req: Request, res: Response) => {
   const { id } = req.params;
+  console.log("Fetching blog with ID:", id);
   try {
     const blog = await Blog.findById(id);
     if (!blog) {
