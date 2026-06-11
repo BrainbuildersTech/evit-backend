@@ -24,6 +24,7 @@ export const createBlog = async (req: Request, res: Response) => {
 
   let coverImage: string = '';
   if (req.file) {
+    console.log("Got here");
     coverImage = await uploadToCloudinary(req.file);
   }
 

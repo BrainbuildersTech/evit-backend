@@ -29,8 +29,7 @@ export const createIncident = async (req: Request, res: Response) => {
       date
     } = req.body;
 
-    console.log("Files", req.files);
-
+    // Validation
     if (
       !title?.trim() ||
       !incidentType?.trim() ||
@@ -47,7 +46,6 @@ export const createIncident = async (req: Request, res: Response) => {
       });
     }
 
-
     const parsedDate = new Date(date);
 
     if (isNaN(parsedDate.getTime())) {
@@ -56,18 +54,40 @@ export const createIncident = async (req: Request, res: Response) => {
       });
     }
 
-    if (incidentType === 'Other' && !otherIncidentType) return res.status(400).json({ message: 'Other incident type must be specified when "Other" is selected.' });
+    if (incidentType === 'Other' && !otherIncidentType) {
+      return res.status(400).json({ message: 'Other incident type must be specified when "Other" is selected.' });
+    }
 
-    if (!isAnonymous && (!reporterName || !reporterEmail || !reporterPhone)) return res.status(400).json({ message: 'Reporter information is required for non-anonymous reports.' });
+    if (!isAnonymous && (!reporterName || !reporterEmail || !reporterPhone)) {
+      return res.status(400).json({ message: 'Reporter information is required for non-anonymous reports.' });
+    }
 
-    // if ((reporterEmail && reporterEmail.length > 0) && !isEmail(reporterEmail)) return res.status(400).json({ message: 'Invalid reporter email format.' });
-
-    // if ((reporterPhone && reporterPhone.length > 0) && !isMobilePhone(reporterPhone)) return res.status(400).json({ message: 'Invalid reporter phone number format.' });
-
+    // Handle media files upload
     const files = (req.files as Express.Multer.File[]) || [];
-    const evidenceUrls = await Promise.all(
-      files.map((file) => uploadToCloudinary(file))
-    );
+    let evidenceUrls: string[] = [];
+
+    if (files.length > 0) {
+      try {
+        evidenceUrls = await Promise.all(
+          files.map((file) => uploadToCloudinary(file))
+        );
+      } catch (uploadError) {
+        console.error('File upload error:', uploadError);
+        return res.status(400).json({
+          message: 'Failed to upload media files. Please ensure they are valid images or videos.'
+        });
+      }
+    }
+
+    // Parse tags if it's a string
+    let parsedTags: string[] = [];
+    if (tags) {
+      try {
+        parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+      } catch (e) {
+        parsedTags = [];
+      }
+    }
 
     const incident = new Incident({
       title,
@@ -76,22 +96,18 @@ export const createIncident = async (req: Request, res: Response) => {
       ward,
       pollingUnit,
       selectedLocation: {
-        latitude,
-        longitude,
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
         address
       },
       date,
       description,
-      tags: Array.isArray(tags)
-        ? tags
-        : tags
-          ? tags.split(',').map((tag: string) => tag.trim())
-          : [],
+      tags: parsedTags,
       lga,
       reporterName,
       reporterEmail,
       reporterPhone,
-      isAnonymous,
+      isAnonymous: isAnonymous === 'true' || isAnonymous === true,
       media: evidenceUrls
     });
 
@@ -100,7 +116,7 @@ export const createIncident = async (req: Request, res: Response) => {
     res.status(201).json(savedIncident);
   } catch (error) {
     console.error('createIncident error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error', error: error instanceof Error ? error.message : 'Unknown error' });
   }
 };
 
@@ -117,11 +133,26 @@ export const getVerifiedIncidents = async (_req: Request, res: Response) => {
 };
 
 export const updateVerification = async (req: Request, res: Response) => {
-  const incident = await Incident.findByIdAndUpdate(
-    req.params.id,
-    req.body,
-    { new: true }
-  );
+  const { id } = req.params;
+  const { action } = req.body;
+  try {
+    const incident = await Incident.findById(id);
+    if (!incident) {
+      return res.status(404).json({ message: 'Incident not found' });
+    }
 
-  res.json(incident);
+    if (action === 'verify') {
+      incident.verificationStatus = 'verified';
+    } else if (action === 'reject') {
+      incident.verificationStatus = 'rejected';
+    } else {
+      return res.status(400).json({ message: 'Invalid action. Must be "verify" or "reject".' });
+    }
+
+    const result = await incident.save();
+    res.json({ message: `Incident ${result.verificationStatus} successfully` });
+  } catch (error) {
+    console.error('updateVerification error:', error);
+    res.status(500).json({ message: 'Internal server error', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
 };
