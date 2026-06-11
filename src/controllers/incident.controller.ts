@@ -105,7 +105,14 @@ export const createIncident = async (req: Request, res: Response) => {
 };
 
 export const getIncidents = async (_req: Request, res: Response) => {
+  console.log("Called getIncidents");
   const incidents = await Incident.find().sort({ createdAt: -1 });
+  res.json(incidents);
+};
+
+export const getVerifiedIncidents = async (_req: Request, res: Response) => {
+  console.log("Called getVerifiedIncidents");
+  const incidents = await Incident.find({ verificationStatus: 'verified' }).sort({ createdAt: -1 });
   res.json(incidents);
 };
 
