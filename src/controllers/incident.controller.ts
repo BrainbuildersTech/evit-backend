@@ -1,6 +1,7 @@
 
 import { Request, Response } from 'express';
 import Incident from '../models/Incident';
+import { addFactcheckJob } from '../queues/factcheck.queue';
 import { isEmail, isMobilePhone } from 'validator';
 import multer from 'multer';
 import { uploadToCloudinary } from '../lib/cloudinary';
@@ -96,6 +97,13 @@ export const createIncident = async (req: Request, res: Response) => {
     });
 
     const savedIncident = await incident.save();
+
+    // enqueue background factcheck job (do not block response)
+    try {
+      addFactcheckJob(savedIncident._id?.toString(), description || savedIncident.description as string);
+    } catch (e) {
+      console.error('Failed to enqueue factcheck job', e);
+    }
 
     res.status(201).json(savedIncident);
   } catch (error) {
