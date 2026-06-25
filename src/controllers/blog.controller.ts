@@ -47,6 +47,11 @@ export const getBlogs = async (_req: Request, res: Response) => {
   res.json(blogs);
 };
 
+export const getFilteredBlogs = async (req: Request, res: Response) => {
+  const blogs = await Blog.find({ published: true }).sort({ createdAt: -1 });
+  res.json(blogs);
+}
+
 export const getBlogById = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
@@ -61,7 +66,6 @@ export const getBlogById = async (req: Request, res: Response) => {
 };
 
 export const updateBlog = async (req: Request, res: Response) => {
-  console.log("Body", req.body);
   const { id } = req.params;
   const { title, content, author, published, category } = req.body;
 

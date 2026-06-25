@@ -26,7 +26,7 @@ const incidentSchema = new Schema({
   aiReview: { type: String, null: true },
   verificationStatus: {
     type: String,
-    enum: ['pending', 'under-review', 'verified', 'rejected'],
+    enum: ['pending', 'investigating', 'verified', 'rejected'],
     default: 'pending'
   }
 }, { timestamps: true });
