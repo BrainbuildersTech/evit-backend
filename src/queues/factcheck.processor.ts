@@ -21,7 +21,11 @@ factcheckQueue.process(async (job: any) => {
     else aiReview = JSON.stringify(data);
 
     if (incidentId) {
-      await Incident.findByIdAndUpdate(incidentId, { aiReview }, { new: true });
+      const incidentToUpdated = await Incident.findById(incidentId);
+      if (incidentToUpdated) {
+        incidentToUpdated.aiReview = aiReview;
+        await incidentToUpdated.save();
+      }
     }
   } catch (err) {
     console.error('Factcheck job failed for incident', incidentId, err);
