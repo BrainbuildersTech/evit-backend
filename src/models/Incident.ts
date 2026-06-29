@@ -23,6 +23,7 @@ const incidentSchema = new Schema({
   electionPhase: { type: String, null: true },
   isAnonymous: { type: Boolean, default: true },
   media: [String],
+  aiReview: { type: String, null: true },
   verificationStatus: {
     type: String,
     enum: ['pending', 'investigating', 'verified', 'rejected'],
