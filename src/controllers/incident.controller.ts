@@ -8,115 +8,184 @@ import { uploadToCloudinary } from '../lib/cloudinary';
 
 export const upload = multer({ storage: multer.memoryStorage() });
 
+class HttpError extends Error {
+  statusCode: number;
+
+  constructor(message: string, statusCode = 500) {
+    super(message);
+    this.name = 'HttpError';
+    this.statusCode = statusCode;
+  }
+}
+
+const generateIncidentId = async (year: number) => {
+  const prefix = `EV-${year}-`;
+  const latestIncident = await Incident.findOne({ reportId: { $regex: `^${prefix}` } })
+    .sort({ createdAt: -1 })
+    .select('reportId');
+
+  const lastNumber = latestIncident?.reportId ? Number(latestIncident.reportId.split('-').pop()) : 0;
+  return `${prefix}${String(lastNumber + 1).padStart(3, '0')}`;
+};
+
+const buildIncidentPayload = async (
+  req: Request,
+  res: Response,
+  reporterOverrides?: { reporterName?: string; reporterEmail?: string; reporterPhone?: string; isAnonymous?: boolean }
+): Promise<InstanceType<typeof Incident> | null> => {
+  const {
+    title,
+    incidentType,
+    state,
+    ward,
+    pollingUnit,
+    latitude,
+    longitude,
+    address,
+    description,
+    tags,
+    reporterName,
+    reporterEmail,
+    reporterPhone,
+    isAnonymous,
+    otherIncidentType,
+    lga,
+    date,
+    time,
+    electionYear,
+    electionType,
+    violenceCategory,
+    fatalities,
+    injuries,
+    source,
+    verificationStatus
+  } = req.body;
+
+  if (!title?.trim() || !incidentType?.trim() || !state?.trim() || !description?.trim() || !date || !time?.trim() || !electionYear?.toString().trim() || !electionType?.trim() || !violenceCategory?.trim() || !source?.trim()) {
+    throw new HttpError('Missing required fields.', 400);
+  }
+
+  const parsedDate = new Date(date);
+  const parsedElectionYear = Number(electionYear);
+
+  if (isNaN(parsedDate.getTime())) {
+    throw new HttpError('Invalid date format.', 400);
+  }
+
+  if (!Number.isInteger(parsedElectionYear) || parsedElectionYear < 1999 || parsedElectionYear > 2100) {
+    throw new HttpError('Election year must be a valid 4-digit year.', 400);
+  }
+
+  if (incidentType === 'Other' && !otherIncidentType?.trim()) {
+    throw new HttpError('Other incident type must be specified when "Other" is selected.', 400);
+  }
+
+  const normalizedReporterName = reporterOverrides?.reporterName ?? reporterName;
+  const normalizedReporterEmail = reporterOverrides?.reporterEmail ?? reporterEmail;
+  const normalizedReporterPhone = reporterOverrides?.reporterPhone ?? reporterPhone;
+  const normalizedIsAnonymous = reporterOverrides?.isAnonymous ?? (isAnonymous === 'true' || isAnonymous === true);
+
+  if (!normalizedIsAnonymous && (!normalizedReporterName?.trim() || !normalizedReporterEmail?.trim())) {
+    throw new HttpError('Reporter information is required for non-anonymous reports.', 400);
+  }
+
+  if (!normalizedIsAnonymous && normalizedReporterEmail && !isEmail(normalizedReporterEmail)) {
+    throw new HttpError('Reporter email must be a valid email address.', 400);
+  }
+
+  if (normalizedReporterPhone && !isMobilePhone(normalizedReporterPhone, ['en-NG'])) {
+    throw new HttpError('Reporter phone number must be a valid phone number.', 400);
+  }
+
+  const parsedFatalities = fatalities === '' || fatalities === undefined ? undefined : Number(fatalities);
+  const parsedInjuries = injuries === '' || injuries === undefined ? undefined : Number(injuries);
+
+  if ((fatalities !== '' && fatalities !== undefined && Number.isNaN(parsedFatalities)) || (fatalities !== '' && fatalities !== undefined && parsedFatalities! < 0)) {
+    throw new HttpError('Fatalities must be a non-negative number.', 400);
+  }
+
+  if ((injuries !== '' && injuries !== undefined && Number.isNaN(parsedInjuries)) || (injuries !== '' && injuries !== undefined && parsedInjuries! < 0)) {
+    throw new HttpError('Injuries must be a non-negative number.', 400);
+  }
+
+  const files = (req.files as Express.Multer.File[]) || [];
+  let evidenceUrls: string[] = [];
+
+  if (files.length > 0) {
+    try {
+      evidenceUrls = await Promise.all(files.map((file) => uploadToCloudinary(file)));
+    } catch (uploadError) {
+      console.error('File upload error:', uploadError);
+      throw new HttpError('Failed to upload media files. Please ensure they are valid images or videos.', 400);
+    }
+  }
+
+  let parsedTags: string[] = [];
+  if (tags) {
+    try {
+      parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+    } catch (e) {
+      parsedTags = [];
+    }
+  }
+
+  const latitudeValue = latitude ? parseFloat(latitude) : undefined;
+  const longitudeValue = longitude ? parseFloat(longitude) : undefined;
+  const selectedLocation = {
+    ...(latitudeValue !== undefined && !Number.isNaN(latitudeValue) ? { latitude: latitudeValue } : {}),
+    ...(longitudeValue !== undefined && !Number.isNaN(longitudeValue) ? { longitude: longitudeValue } : {}),
+    ...(address?.trim() ? { address: address.trim() } : {})
+  };
+
+  const normalizedVerificationStatus = verificationStatus?.toString().trim() || 'pending';
+  const validStatuses = ['pending', 'investigating', 'verified', 'rejected'];
+  if (!validStatuses.includes(normalizedVerificationStatus)) {
+    throw new HttpError('Verification status is invalid.', 400);
+  }
+
+  const reportId = await generateIncidentId(parsedElectionYear);
+
+  const incident = new Incident({
+    reportId,
+    title: title.trim(),
+    incidentType: incidentType === 'Other' ? otherIncidentType : incidentType,
+    electionYear: parsedElectionYear,
+    electionType: electionType.trim(),
+    state: state.trim(),
+    ward: ward?.trim(),
+    pollingUnit: pollingUnit?.trim(),
+    selectedLocation,
+    date: parsedDate,
+    time: time.trim(),
+    violenceCategory: violenceCategory.trim(),
+    fatalities: parsedFatalities,
+    injuries: parsedInjuries,
+    source: source.trim(),
+    description: description.trim(),
+    tags: parsedTags,
+    lga: lga?.trim(),
+    reporterName: normalizedReporterName?.trim(),
+    reporterEmail: normalizedReporterEmail?.trim(),
+    reporterPhone: normalizedReporterPhone?.trim(),
+    isAnonymous: normalizedIsAnonymous,
+    verificationStatus: normalizedVerificationStatus,
+    media: evidenceUrls
+  });
+
+  return incident;
+};
+
 export const createIncident = async (req: Request, res: Response) => {
   try {
-    const {
-      title,
-      incidentType,
-      state,
-      ward,
-      pollingUnit,
-      latitude,
-      longitude,
-      address,
-      description,
-      tags,
-      reporterName,
-      reporterEmail,
-      reporterPhone,
-      isAnonymous,
-      otherIncidentType,
-      lga,
-      date
-    } = req.body;
-
-    // Validation
-    if (
-      !title?.trim() ||
-      !incidentType?.trim() ||
-      !state?.trim() ||
-      !pollingUnit?.trim() ||
-      !ward?.trim() ||
-      !lga?.trim() ||
-      !address?.trim() ||
-      !description?.trim() ||
-      !date
-    ) {
-      return res.status(400).json({
-        message: 'Missing required fields.'
-      });
+    const incident = await buildIncidentPayload(req, res);
+    if (!incident) {
+      return;
     }
-
-    const parsedDate = new Date(date);
-
-    if (isNaN(parsedDate.getTime())) {
-      return res.status(400).json({
-        message: 'Invalid date format.'
-      });
-    }
-
-    if (incidentType === 'Other' && !otherIncidentType) {
-      return res.status(400).json({ message: 'Other incident type must be specified when "Other" is selected.' });
-    }
-
-    if (!isAnonymous && (!reporterName || !reporterEmail || !reporterPhone)) {
-      return res.status(400).json({ message: 'Reporter information is required for non-anonymous reports.' });
-    }
-
-    // Handle media files upload
-    const files = (req.files as Express.Multer.File[]) || [];
-    let evidenceUrls: string[] = [];
-
-    if (files.length > 0) {
-      try {
-        evidenceUrls = await Promise.all(
-          files.map((file) => uploadToCloudinary(file))
-        );
-      } catch (uploadError) {
-        console.error('File upload error:', uploadError);
-        return res.status(400).json({
-          message: 'Failed to upload media files. Please ensure they are valid images or videos.'
-        });
-      }
-    }
-
-    // Parse tags if it's a string
-    let parsedTags: string[] = [];
-    if (tags) {
-      try {
-        parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
-      } catch (e) {
-        parsedTags = [];
-      }
-    }
-
-    const incident = new Incident({
-      title,
-      incidentType: incidentType === 'Other' ? otherIncidentType : incidentType,
-      state,
-      ward,
-      pollingUnit,
-      selectedLocation: {
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
-        address
-      },
-      date,
-      description,
-      tags: parsedTags,
-      lga,
-      reporterName,
-      reporterEmail,
-      reporterPhone,
-      isAnonymous: isAnonymous === 'true' || isAnonymous === true,
-      media: evidenceUrls
-    });
 
     const savedIncident = await incident.save();
 
-    // enqueue background factcheck job (do not block response)
     try {
-      addFactcheckJob(savedIncident._id?.toString(), description || savedIncident.description as string);
+      addFactcheckJob(savedIncident._id?.toString(), savedIncident.description || '');
     } catch (e) {
       console.error('Failed to enqueue factcheck job', e);
     }
@@ -124,9 +193,50 @@ export const createIncident = async (req: Request, res: Response) => {
     res.status(201).json(savedIncident);
   } catch (error) {
     console.error('createIncident error:', error);
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
     res.status(500).json({ message: 'Internal server error', error: error instanceof Error ? error.message : 'Unknown error' });
   }
 };
+
+export const createIncidentAdmin = async (req: Request, res: Response) => {
+  try {
+    const authUser = (req as any).user;
+    req.body.verificationStatus = 'verified';
+    const incident = await buildIncidentPayload(req, res, {
+      reporterName: authUser?.name || authUser?.email || 'Admin',
+      reporterEmail: authUser?.email || '',
+      reporterPhone: '',
+      isAnonymous: false
+    });
+
+    if (!incident) {
+      return;
+    }
+
+    const savedIncident = await incident.save();
+
+    try {
+      addFactcheckJob(savedIncident._id?.toString(), savedIncident.description || '');
+    } catch (e) {
+      console.error('Failed to enqueue factcheck job', e);
+    }
+
+    res.status(201).json(savedIncident);
+  } catch (error) {
+    console.error('createIncidentAdmin error:', error);
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Internal server error', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
+
+export const createIncidentLegacy = async (req: Request, res: Response) => {
+  return createIncident(req, res);
+};
+
 
 export const getIncidents = async (_req: Request, res: Response) => {
   const incidents = await Incident.find().sort({ createdAt: -1 });

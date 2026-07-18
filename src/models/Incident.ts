@@ -2,8 +2,11 @@
 import { Schema, model } from 'mongoose';
 
 const incidentSchema = new Schema({
+  reportId: { type: String, unique: true, sparse: true },
   title: String,
   incidentType: String,
+  electionYear: Number,
+  electionType: String,
   pollingUnit: String,
   lga: String,
   selectedLocation: {
@@ -19,6 +22,11 @@ const incidentSchema = new Schema({
   state: String,
   ward: String,
   date: Date,
+  time: String,
+  violenceCategory: String,
+  fatalities: Number,
+  injuries: Number,
+  source: String,
   comments: [{ type: Schema.Types.ObjectId, ref: 'Comment' }],
   electionPhase: { type: String, null: true },
   isAnonymous: { type: Boolean, default: true },
