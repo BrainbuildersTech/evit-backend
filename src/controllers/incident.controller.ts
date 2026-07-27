@@ -233,8 +233,51 @@ export const createIncidentAdmin = async (req: Request, res: Response) => {
   }
 };
 
-export const createIncidentLegacy = async (req: Request, res: Response) => {
-  return createIncident(req, res);
+export const updateIncidentAdmin = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const incident = await Incident.findById(id);
+    if (!incident) {
+      return res.status(404).json({ message: 'Incident not found' });
+    }
+
+    const whitelist = [
+      'title', 'incidentType', 'otherIncidentType', 'state', 'lga', 'ward',
+      'pollingUnit', 'description', 'date', 'time', 'source', 'violenceCategory',
+      'electionYear', 'electionType', 'fatalities', 'injuries', 'verificationStatus'
+    ];
+    for (const field of whitelist) {
+      if (req.body[field] !== undefined) {
+        (incident as any)[field] = req.body[field];
+      }
+    }
+
+    // Address / location
+    if (req.body.address !== undefined || req.body.latitude !== undefined || req.body.longitude !== undefined) {
+      incident.selectedLocation = {
+        address: req.body.address ?? incident.selectedLocation?.address,
+        latitude: req.body.latitude !== undefined ? parseFloat(req.body.latitude) : incident.selectedLocation?.latitude,
+        longitude: req.body.longitude !== undefined ? parseFloat(req.body.longitude) : incident.selectedLocation?.longitude,
+      };
+    }
+
+    // Append new media without replacing existing
+    const files = (req.files as Express.Multer.File[]) || [];
+    if (files.length > 0) {
+      const newUrls = await Promise.all(files.map((f) => uploadToCloudinary(f)));
+      incident.media = [...(incident.media || []), ...newUrls];
+    }
+
+    // reportId is never changed on edit — preserved from original save
+    const saved = await incident.save();
+    res.json(saved);
+  } catch (error) {
+    console.error('updateIncidentAdmin error:', error);
+    if (error instanceof HttpError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Internal server error', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
 };
 
 
