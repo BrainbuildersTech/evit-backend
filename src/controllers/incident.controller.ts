@@ -57,6 +57,7 @@ const buildIncidentPayload = async (
     violenceCategory,
     fatalities,
     injuries,
+    propertyDamage,
     source,
     verificationStatus
   } = req.body;
@@ -160,6 +161,7 @@ const buildIncidentPayload = async (
     violenceCategory: violenceCategory.trim(),
     fatalities: parsedFatalities,
     injuries: parsedInjuries,
+    propertyDamage: propertyDamage?.trim() || undefined,
     source: source.trim(),
     description: description.trim(),
     tags: parsedTags,
@@ -244,7 +246,7 @@ export const updateIncidentAdmin = async (req: Request, res: Response) => {
     const whitelist = [
       'title', 'incidentType', 'otherIncidentType', 'state', 'lga', 'ward',
       'pollingUnit', 'description', 'date', 'time', 'source', 'violenceCategory',
-      'electionYear', 'electionType', 'fatalities', 'injuries', 'verificationStatus'
+      'electionYear', 'electionType', 'fatalities', 'injuries', 'propertyDamage', 'verificationStatus'
     ];
     for (const field of whitelist) {
       if (req.body[field] !== undefined) {

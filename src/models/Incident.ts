@@ -26,6 +26,7 @@ const incidentSchema = new Schema({
   violenceCategory: String,
   fatalities: Number,
   injuries: Number,
+  propertyDamage: { type: String, null: true },
   source: String,
   comments: [{ type: Schema.Types.ObjectId, ref: 'Comment' }],
   electionPhase: { type: String, null: true },
