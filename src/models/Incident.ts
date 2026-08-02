@@ -28,6 +28,7 @@ const incidentSchema = new Schema({
   injuries: Number,
   propertyDamage: { type: String, null: true },
   source: String,
+  sourceLink: { type: String, null: true },
   comments: [{ type: Schema.Types.ObjectId, ref: 'Comment' }],
   electionPhase: { type: String, null: true },
   isAnonymous: { type: Boolean, default: true },

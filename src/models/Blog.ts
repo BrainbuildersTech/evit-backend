@@ -16,6 +16,28 @@ const blogSchema = new Schema({
     type: String,
     required: [true, 'Content is required']
   },
+  subtitle: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  excerpt: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  tags: {
+    type: [String],
+    default: []
+  },
+  featured: {
+    type: Boolean,
+    default: false
+  },
+  readingTime: {
+    type: Number,
+    default: 0
+  },
   author: {
     type: String,
     required: [true, 'Author is required'],

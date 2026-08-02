@@ -2,7 +2,7 @@
 import { Request, Response } from 'express';
 import Incident from '../models/Incident';
 import { addFactcheckJob } from '../queues/factcheck.queue';
-import { isEmail, isMobilePhone } from 'validator';
+import { isEmail, isMobilePhone, isURL } from 'validator';
 import multer from 'multer';
 import { uploadToCloudinary } from '../lib/cloudinary';
 
@@ -59,6 +59,7 @@ const buildIncidentPayload = async (
     injuries,
     propertyDamage,
     source,
+    sourceLink,
     verificationStatus
   } = req.body;
 
@@ -96,6 +97,12 @@ const buildIncidentPayload = async (
 
   if (normalizedReporterPhone && !isMobilePhone(normalizedReporterPhone, ['en-NG'])) {
     throw new HttpError('Reporter phone number must be a valid phone number.', 400);
+  }
+
+  // Source link is optional, but when provided it must be a valid URL.
+  const normalizedSourceLink = typeof sourceLink === 'string' ? sourceLink.trim() : '';
+  if (normalizedSourceLink && !isURL(normalizedSourceLink, { require_protocol: true, protocols: ['http', 'https'] })) {
+    throw new HttpError('Source link must be a valid URL (including http:// or https://).', 400);
   }
 
   const parsedFatalities = fatalities === '' || fatalities === undefined ? undefined : Number(fatalities);
@@ -163,6 +170,7 @@ const buildIncidentPayload = async (
     injuries: parsedInjuries,
     propertyDamage: propertyDamage?.trim() || undefined,
     source: source.trim(),
+    sourceLink: normalizedSourceLink || undefined,
     description: description.trim(),
     tags: parsedTags,
     lga: lga?.trim(),
@@ -245,12 +253,20 @@ export const updateIncidentAdmin = async (req: Request, res: Response) => {
 
     const whitelist = [
       'title', 'incidentType', 'otherIncidentType', 'state', 'lga', 'ward',
-      'pollingUnit', 'description', 'date', 'time', 'source', 'violenceCategory',
+      'pollingUnit', 'description', 'date', 'time', 'source', 'sourceLink', 'violenceCategory',
       'electionYear', 'electionType', 'fatalities', 'injuries', 'propertyDamage', 'verificationStatus'
     ];
+    // Validate the source link only when the client sends a non-empty value; an
+    // omitted or blank field preserves whatever is already stored.
+    if (typeof req.body.sourceLink === 'string' && req.body.sourceLink.trim() &&
+        !isURL(req.body.sourceLink.trim(), { require_protocol: true, protocols: ['http', 'https'] })) {
+      return res.status(400).json({ message: 'Source link must be a valid URL (including http:// or https://).' });
+    }
     for (const field of whitelist) {
       if (req.body[field] !== undefined) {
-        (incident as any)[field] = req.body[field];
+        (incident as any)[field] = field === 'sourceLink'
+          ? (typeof req.body[field] === 'string' ? req.body[field].trim() : req.body[field])
+          : req.body[field];
       }
     }
 
