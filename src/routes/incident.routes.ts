@@ -6,6 +6,9 @@ import {
   updateIncidentAdmin,
   getIncidents,
   getVerifiedIncidents,
+  getDeletedIncidents,
+  deleteIncident,
+  restoreIncident,
   updateVerification,
   upload
 } from '../controllers/incident.controller';
@@ -18,6 +21,9 @@ router.patch('/admin/:id', adminInterceptor, upload.array('media'), updateIncide
 router.post('/', upload.array('media'), createIncident);
 router.get('/', adminInterceptor, getIncidents);
 router.get('/verified', getVerifiedIncidents);
+router.get('/deleted', adminInterceptor, getDeletedIncidents);
 router.patch('/:id/verification', adminInterceptor, updateVerification);
+router.patch('/:id/restore', adminInterceptor, restoreIncident);
+router.delete('/:id', adminInterceptor, deleteIncident);
 
 export default router;

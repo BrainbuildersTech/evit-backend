@@ -300,13 +300,64 @@ export const updateIncidentAdmin = async (req: Request, res: Response) => {
 
 
 export const getIncidents = async (_req: Request, res: Response) => {
-  const incidents = await Incident.find().sort({ createdAt: -1 });
+  const incidents = await Incident.find({ deletedAt: null }).sort({ createdAt: -1 });
   res.json(incidents);
 };
 
 export const getVerifiedIncidents = async (_req: Request, res: Response) => {
-  const incidents = await Incident.find({ verificationStatus: 'verified' }).sort({ createdAt: -1 });
+  const incidents = await Incident.find({ verificationStatus: 'verified', deletedAt: null }).sort({ createdAt: -1 });
   res.json(incidents);
+};
+
+export const getDeletedIncidents = async (_req: Request, res: Response) => {
+  const incidents = await Incident.find({ deletedAt: { $ne: null } }).sort({ deletedAt: -1 });
+  res.json(incidents);
+};
+
+export const deleteIncident = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const incident = await Incident.findById(id);
+    if (!incident) {
+      return res.status(404).json({ message: 'Incident not found' });
+    }
+
+    if (incident.deletedAt) {
+      return res.status(400).json({ message: 'Incident is already deleted' });
+    }
+
+    incident.deletedAt = new Date();
+    incident.deletedBy = (req as any).user?._id;
+    await incident.save();
+
+    res.json({ message: 'Incident deleted successfully' });
+  } catch (error) {
+    console.error('deleteIncident error:', error);
+    res.status(500).json({ message: 'Internal server error', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+};
+
+export const restoreIncident = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const incident = await Incident.findById(id);
+    if (!incident) {
+      return res.status(404).json({ message: 'Incident not found' });
+    }
+
+    if (!incident.deletedAt) {
+      return res.status(400).json({ message: 'Incident is not deleted' });
+    }
+
+    incident.deletedAt = null;
+    incident.deletedBy = null;
+    await incident.save();
+
+    res.json({ message: 'Incident restored successfully' });
+  } catch (error) {
+    console.error('restoreIncident error:', error);
+    res.status(500).json({ message: 'Internal server error', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
 };
 
 export const updateVerification = async (req: Request, res: Response) => {

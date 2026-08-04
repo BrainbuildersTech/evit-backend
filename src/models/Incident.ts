@@ -38,7 +38,9 @@ const incidentSchema = new Schema({
     type: String,
     enum: ['pending', 'investigating', 'verified', 'rejected'],
     default: 'pending'
-  }
+  },
+  deletedAt: { type: Date, default: null },
+  deletedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null }
 }, { timestamps: true });
 
 export default model('Incident', incidentSchema);
